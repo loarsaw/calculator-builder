@@ -12,7 +12,7 @@ export const Sidebar = () => {
     e.dataTransfer.setData("blockType", blockType);
   };
 
-  const sidebarClassNames = `flex-none transition-all duration-300 ${
+  const sidebarClassNames = `flex-none transition-all duration-300  ${
     isRuntime ? "opacity-0 pointer-events-none" : "w-96"
   }`;
 
