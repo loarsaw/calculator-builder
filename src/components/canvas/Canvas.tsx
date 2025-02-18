@@ -1,140 +1,113 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { blocksData } from "../../data/blocksData";
 import { SidebarBlock } from "../sidebar-block/SidebarBlock";
+import { ButtonSwitcher } from "../ui/button-switcher/buttonSwitcher";
 import { useCalcStore } from "../../features/calcSlice";
 import { useConstructStore } from "../../features/constructSlice";
-import { v4 } from "uuid";
-import { ButtonSwitcher } from "../ui/button-switcher/buttonSwitcher";
 
-export const Canvas = () => {
+
+interface DragEvent extends React.DragEvent<HTMLDivElement> {
+  dataTransfer: DataTransfer;
+}
+
+export const Canvas: React.FC = () => {
   const { reset } = useCalcStore();
-  const { canvasList, sidebarList, isRuntime, deleteFromCanvas, addToCanvas } =
-    useConstructStore();
-  const [onDragEnterBlock, setOnDragEnterBlock] = useState<string | null>(null);
+  const { 
+    canvasList, 
+    sidebarList, 
+    isRuntime, 
+    deleteFromCanvas, 
+    addToCanvas 
+  } = useConstructStore();
+  const [dragTarget, setDragTarget] = useState<string | null>(null);
 
-  const onDragEnter = (
-    e: React.DragEvent<HTMLDivElement>,
-    blockType: string | "canvas"
-  ) => {
-    e.stopPropagation();
-    setOnDragEnterBlock(blockType);
+  const isCanvasEmpty = canvasList.length === 0;
+
+  const handleDragEnter = (event: DragEvent, blockType: string | "canvas") => {
+    event.stopPropagation();
+    setDragTarget(blockType);
   };
 
-  const onDropHandler = (e: React.DragEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    setOnDragEnterBlock(null);
+  const handleDrop = (event: DragEvent) => {
+    event.stopPropagation();
+    const blockType = event.dataTransfer.getData("blockType");
+    
+    setDragTarget(null);
 
-    const blockType = e.dataTransfer.getData("blockType");
-    const blockInCanvas = canvasList.find(
-      (item) => item.blockType === blockType
-    );
-    const indexBlockInCanvas = canvasList.findIndex(
-      (item) => item.blockType === blockType
-    );
-    const blockInSidebar = sidebarList.find(
-      (item) => item.blockType === blockType
-    );
-    if (onDragEnterBlock === blockType) return;
+    const blockInCanvas = canvasList.find(item => item.blockType === blockType);
+    const blockInSidebar = sidebarList.find(item => item.blockType === blockType);
+    const canvasIndex = canvasList.findIndex(item => item.blockType === blockType);
+
+    if (dragTarget === blockType) return;
     if (blockInCanvas?.blockType === "display") return;
 
-    if (indexBlockInCanvas > -1) {
-      deleteFromCanvas(canvasList[indexBlockInCanvas]);
-      const position =
-        onDragEnterBlock === "canvas"
-          ? -1
-          : canvasList.findIndex((item) => item.blockType === onDragEnterBlock);
+    const targetPosition = dragTarget === "canvas" 
+      ? -1 
+      : canvasList.findIndex(item => item.blockType === dragTarget);
+
+    if (canvasIndex > -1) {
+      deleteFromCanvas(canvasList[canvasIndex]);
       const newBlock = {
         ...blockInCanvas,
-        id: blockInCanvas?.id || v4(),
-        isOnCanvas: true,
+        id: blockInCanvas?.id || uuidv4(),
+        isOnCanvas: true
       };
-      // @ts-ignore
-      addToCanvas(newBlock, position);
+      addToCanvas(newBlock, targetPosition);
     } else if (blockInSidebar) {
-      const position =
-        onDragEnterBlock === "canvas"
-          ? -1
-          : canvasList.findIndex((item) => item.blockType === onDragEnterBlock);
       addToCanvas(
         { ...blockInSidebar, isOnCanvas: true },
-        position >= 0 ? position : 0
+        targetPosition >= 0 ? targetPosition : 0
       );
     }
   };
 
-  const deleteBlockHandler = (blockType: string) => {
+  const handleDeleteBlock = (blockType: string) => {
     if (isRuntime) return;
-    const block = canvasList.find((block) => block.blockType === blockType);
+    
+    const block = canvasList.find(block => block.blockType === blockType);
     if (blockType === "display") reset();
-    block && deleteFromCanvas(block);
+    if (block) deleteFromCanvas(block);
   };
 
-  const onDragStart = (
-    e: React.DragEvent<HTMLDivElement>,
-    blockType: string
-  ) => {
-    e.dataTransfer.setData("blockType", blockType);
+  const handleDragStart = (event: DragEvent, blockType: string) => {
+    event.dataTransfer.setData("blockType", blockType);
   };
 
-  const canvasClassNames = [
-    "canvas",
-    onDragEnterBlock === "canvas" && canvasList.length === 0
-      ? "canvas__initial--onDrag"
-      : null,
-    canvasList.length === 0 ? "canvas__initial" : null,
-    onDragEnterBlock === "canvas" &&
-    canvasList.length > 0 &&
-    canvasList.length < 3
-      ? "canvas__insert--down"
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
 
-  const canvasInfoClassNames = [
+  const infoClasses = [
     "w-full h-full flex flex-col items-center justify-center pointer-events-none text-[#333]",
-    canvasList.length > 0 ? "hidden" : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+    !isCanvasEmpty && "hidden"
+  ].filter(Boolean).join(" ");
 
   return (
-    <div
-      className={`
-        flex-none relative 
-        w-[50rem] 
-        flex flex-col // Flex column for layout
-        min-h-[43.6rem] // Minimum height to match canvas size
-      `}
-    >
-      {/* Ensure the ButtonSwitcher is positioned properly above the canvas */}
-      <div className="mb-4 flex justify-center items-center"> {/* Centered the button */}
+    <div className="flex-none relative w-[50rem] flex flex-col min-h-[43.6rem]">
+      <div className="mb-4 flex justify-center items-center">
         <ButtonSwitcher />
       </div>
 
       <div
-        className={canvasClassNames}
-        onDrop={onDropHandler}
+        onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        onDragEnter={(e) => onDragEnter(e, "canvas")}
-        style={{ minHeight: "43.6rem" }} // Ensures the canvas gets the minimum height
+        onDragEnter={(e) => handleDragEnter(e, "canvas")}
+        style={{ minHeight: "43.6rem" }}
       >
-        <div className={canvasInfoClassNames}>
+        <div className={infoClasses}>
           <span></span>
         </div>
 
-        {canvasList?.map((block) => (
+        {canvasList?.map(block => (
           <SidebarBlock
-            key={v4()}
+            key={uuidv4()}
             draggable={block.blockType !== "display" && !isRuntime}
             data={blocksData[block.blockType]}
             isGrid={block.blockType === "numbers"}
             isDisplay={block.blockType === "display"}
-            onDragEnter={(e) => onDragEnter(e, block.blockType)}
-            onDoubleClick={() => deleteBlockHandler(block.blockType)}
-            onDragStart={(e) => onDragStart(e, block.blockType)}
+            onDragEnter={(e) => handleDragEnter(e, block.blockType)}
+            onDoubleClick={() => handleDeleteBlock(block.blockType)}
+            onDragStart={(e) => handleDragStart(e, block.blockType)}
             isOnCanvas={block.isOnCanvas}
-            isOnDragEnter={onDragEnterBlock === block.blockType}
+            isOnDragEnter={dragTarget === block.blockType}
           />
         ))}
       </div>

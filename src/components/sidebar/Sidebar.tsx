@@ -1,7 +1,6 @@
 import React from "react";
 import { SidebarBlock } from "../sidebar-block/SidebarBlock";
 import { blocksData } from "../../data/blocksData";
-import { useCalcStore } from "../../features/calcSlice";
 import { useConstructStore } from "../../features/constructSlice";
 
 export const Sidebar = () => {

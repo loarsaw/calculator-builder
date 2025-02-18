@@ -1,4 +1,3 @@
-import React from "react";
 import { useCalcStore } from "../../../features/calcSlice";
 
 type DisplayProps = {
